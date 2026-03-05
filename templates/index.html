@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STT Compare — Google, AWS, Azure</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a20;
+      --border: #2a2a32;
+      --text: #e8e8ec;
+      --muted: #888;
+      --accent: #5b8def;
+      --accent-hover: #7aa3f5;
+      --success: #4ade80;
+      --error: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      min-width: 160px;
+    }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.danger { background: #c53030; }
+    .btn.danger:hover { background: #e53e3e; }
+    .btn.recording { background: var(--error); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.85; } }
+    .transcript-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 120px;
+      font-size: 1rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .transcript-box.empty { color: var(--muted); }
+    .status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    .status.error { color: var(--error); }
+    .status.success { color: var(--success); }
+    .provider-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: var(--border);
+      margin-bottom: 0.5rem;
+    }
+    .compare-section { margin-top: 1.5rem; }
+    .compare-section h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .compare-results {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .compare-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+    }
+    .compare-item .name { font-weight: 600; color: var(--accent); margin-bottom: 0.25rem; }
+    .compare-item .text { font-size: 0.95rem; }
+    .compare-item .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .upload-row { margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .upload-row input[type="file"] { font-size: 0.9rem; color: var(--text); }
+    .help { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Speech-to-Text comparison</h1>
+    <p class="subtitle">Real-time transcription in <strong>English</strong>, <strong>Bahasa Melayu</strong>, or <strong>Bahasa Indonesia</strong>. Pick a provider and language, then speak.</p>
+
+    <div class="card" style="border-left: 4px solid var(--accent);">
+      <p class="help" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--border); border-radius: 6px;"><strong>Microphone:</strong> Open <strong>http://127.0.0.1:5000</strong>. If Chrome doesn&apos;t ask for permission, go to <strong>chrome://settings/content/microphone</strong> → under &quot;Allow&quot; click Add → enter <strong>http://127.0.0.1:5000</strong> → Add. Then reload this page and click &quot;Allow microphone&quot;.</p>
+      <div class="row">
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="google">Google (Speech-to-Text v2)</option>
+            <option value="aws">AWS Transcribe</option>
+            <option value="azure">Azure Speech</option>
+          </select>
+        </div>
+        <div>
+          <label for="language">Language</label>
+          <select id="language">
+            {% for code, name in languages %}
+            <option value="{{ code }}" {% if code == 'en-US' %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="align-self: flex-end; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button type="button" class="btn" id="allowMicBtn" title="Trigger browser permission prompt">Allow microphone</button>
+          <button type="button" class="btn" id="recordBtn">Start recording</button>
+        </div>
+      </div>
+      <div class="upload-row">
+        <label for="audioFile" style="margin-bottom:0;">Or upload audio (WAV/MP3/WebM):</label>
+        <input type="file" id="audioFile" accept="audio/*" />
+        <button type="button" class="btn" id="uploadBtn">Transcribe file</button>
+        <span class="help" style="margin-left:0.25rem;">MP3, M4A, WebM are converted in the browser — no FFmpeg needed.</span>
+      </div>
+      <p class="status" id="status"></p>
+      <p class="help">Recording uses your mic and transcribes in real time (no file upload needed; works without FFmpeg). If the browser didn&apos;t ask for mic access: Chrome → <strong>chrome://settings/content/microphone</strong> → Add <strong>http://127.0.0.1:5000</strong> to Allow → reload.</p>
+      <label>Live transcript</label>
+      <div class="transcript-box empty" id="transcript" aria-live="polite">Your transcription will appear here after you speak and stop recording.</div>
+    </div>
+
+    <div class="card compare-section">
+      <h3>Compare all three at once</h3>
+      <p class="subtitle" style="margin-bottom: 0.75rem;">Run the same clip through Google, AWS, and Azure. Record with the mic or upload a file (no mic needed).</p>
+      <div class="upload-row" style="margin-bottom: 0.5rem;">
+        <button type="button" class="btn" id="compareBtn">Record & compare all 3</button>
+        <span style="color: var(--muted); font-size: 0.9rem;">Or:</span>
+        <input type="file" id="compareFile" accept="audio/*" />
+        <button type="button" class="btn" id="compareFileBtn">Compare with this file</button>
+      </div>
+      <div class="compare-results" id="compareResults"></div>
+    </div>
+  </div>
+
+  <script>
+    const providerSelect = document.getElementById('provider');
+    const languageSelect = document.getElementById('language');
+    const allowMicBtn = document.getElementById('allowMicBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const transcriptEl = document.getElementById('transcript');
+    const statusEl = document.getElementById('status');
+    const compareBtn = document.getElementById('compareBtn');
+    const compareFileBtn = document.getElementById('compareFileBtn');
+    const compareFileInput = document.getElementById('compareFile');
+    const compareResults = document.getElementById('compareResults');
+
+    let mediaRecorder = null;
+    let stream = null;
+    let isRecording = false;
+
+    function setStatus(msg, type = '') {
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + type;
+    }
+
+    function setTranscript(text, append = false) {
+      transcriptEl.classList.remove('empty');
+      if (append) {
+        const existing = (transcriptEl.textContent || '').trim();
+        transcriptEl.textContent = existing + (text ? (existing ? ' ' + text : text) : '');
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      } else {
+        transcriptEl.textContent = text || '';
+      }
+      if (!transcriptEl.textContent.trim()) transcriptEl.classList.add('empty');
+    }
+
+    async function getMic() {
+      if (stream) return stream;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone not supported in this browser. Use Chrome or Edge and open this page at http://127.0.0.1:5000 (not file://).');
+      }
+      setStatus('Requesting microphone access… (allow when the browser asks)', '');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setStatus('Microphone allowed. You can start recording.', 'success');
+        return stream;
+      } catch (e) {
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          throw new Error('Microphone permission denied. Click the lock or camera icon in the address bar → allow Microphone for this site → try again.');
+        }
+        if (e.name === 'NotFoundError' || (e.message && e.message.toLowerCase().includes('not found'))) {
+          throw new Error('No microphone detected. Plug in a mic, set it as default in Windows, then allow access when the browser asks.');
+        }
+        if (e.name === 'NotReadableError' || e.name === 'AbortError') {
+          throw new Error('Microphone in use or unavailable. Close other apps using the mic, then try again.');
+        }
+        throw e;
+      }
+    }
+
+    function makeWavBlob(samples, sampleRate) {
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const dataSize = samples.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+      const s16 = new Int16Array(buffer, 44, samples.length);
+      for (let i = 0; i < samples.length; i++) s16[i] = Math.max(-32768, Math.min(32767, Math.round(samples[i] * 32767)));
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    /** Decode any browser-supported audio file (MP3, M4A, WebM, WAV, etc.) to 16 kHz mono WAV so server does not need FFmpeg. */
+    async function decodeFileToWav(fileOrBlob) {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = await (fileOrBlob instanceof Blob ? fileOrBlob.arrayBuffer() : fileOrBlob);
+      const audioBuffer = await ctx.decodeAudioData(buf);
+      let samples = audioBuffer.getChannelData(0).slice();
+      if (audioBuffer.numberOfChannels > 1) {
+        const n = audioBuffer.numberOfChannels;
+        for (let c = 1; c < n; c++) {
+          const ch = audioBuffer.getChannelData(c);
+          for (let i = 0; i < samples.length; i++) samples[i] += ch[i];
+        }
+        for (let i = 0; i < samples.length; i++) samples[i] /= n;
+      }
+      let sr = audioBuffer.sampleRate;
+      if (sr !== 16000) {
+        const newLen = Math.floor(samples.length * 16000 / sr);
+        const out = new Float32Array(newLen);
+        for (let i = 0; i < newLen; i++) {
+          const j = (i * sr) / 16000;
+          const k = Math.floor(j);
+          const f = j - k;
+          out[i] = k + 1 < samples.length ? samples[k] * (1 - f) + samples[k + 1] * f : samples[k];
+        }
+        samples = out;
+        sr = 16000;
+      }
+      return makeWavBlob(samples, sr);
+    }
+
+    async function sendChunk(blob, append, filename) {
+      const form = new FormData();
+      form.append('audio', blob, filename || 'chunk.wav');
+      form.append('provider', providerSelect.value);
+      form.append('language', languageSelect.value);
+      try {
+        const r = await fetch('/api/transcribe', { method: 'POST', body: form });
+        const contentType = r.headers.get('content-type') || '';
+        let data;
+        if (contentType.includes('application/json')) {
+          data = await r.json();
+        } else {
+          const text = await r.text();
+          setStatus('Server error (' + r.status + '): ' + text.slice(0, 200), 'error');
+          return;
+        }
+        if (data.ok) {
+          setTranscript(data.text || '', append);
+          setStatus('Transcribed.', 'success');
+        } else {
+          setStatus('Error: ' + (data.error || r.status), 'error');
+        }
+      } catch (e) {
+        setStatus('Request failed: ' + e.message + ' (check server is running: python app.py)', 'error');
+      }
+    }
+
+    allowMicBtn.addEventListener('click', async () => {
+      try {
+        await getMic();
+        allowMicBtn.textContent = 'Microphone allowed ✓';
+        allowMicBtn.disabled = true;
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      } catch (e) {
+        setStatus('Microphone: ' + e.message, 'error');
+      }
+    });
+
+    recordBtn.addEventListener('click', async () => {
+      if (isRecording) {
+        isRecording = false;
+        if (window._pcmRecorderInterval) { clearInterval(window._pcmRecorderInterval); window._pcmRecorderInterval = null; }
+        if (window._pcmRecorderProcessor) {
+          try { window._pcmRecorderProcessor.disconnect(); window._pcmRecorderSrc.disconnect(); } catch (_) {}
+        }
+        if (window._pcmRecorderContext) { window._pcmRecorderContext.close(); window._pcmRecorderContext = null; }
+        recordBtn.textContent = 'Start recording';
+        recordBtn.classList.remove('recording');
+        return;
+      }
+      try {
+        await getMic();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const sampleRate = ctx.sampleRate;
+        const src = ctx.createMediaStreamSource(stream);
+        const bufferSize = 4096;
+        const processor = ctx.createScriptProcessor(bufferSize, 1, 1);
+        let chunkSamples = [];
+        const chunkSeconds = 2;
+        const targetSamplesPerChunk = Math.floor(sampleRate * chunkSeconds);
+        processor.onaudioprocess = (e) => {
+          if (!isRecording) return;
+          const input = e.inputBuffer.getChannelData(0);
+          for (let i = 0; i < input.length; i++) chunkSamples.push(input[i]);
+          if (chunkSamples.length >= targetSamplesPerChunk) {
+            const toSend = chunkSamples.splice(0, targetSamplesPerChunk);
+            const wav = makeWavBlob(toSend, sampleRate);
+            setStatus('Sending…', '');
+            sendChunk(wav, true, 'chunk.wav');
+          }
+        };
+        src.connect(processor);
+        processor.connect(ctx.destination);
+        window._pcmRecorderContext = ctx;
+        window._pcmRecorderProcessor = processor;
+        window._pcmRecorderSrc = src;
+        isRecording = true;
+        recordBtn.textContent = 'Stop & transcribe';
+        recordBtn.classList.add('recording');
+        setStatus('Recording… Your voice is saved and transcribed in real time (every second).', '');
+        setTranscript('', false);
+        window._pcmRecorderInterval = setInterval(async () => {
+          if (!isRecording || chunkSamples.length === 0) return;
+          const toSend = chunkSamples.splice(0, chunkSamples.length);
+          if (toSend.length < Math.floor(sampleRate * 0.3)) return;
+          const wav = makeWavBlob(toSend, sampleRate);
+          setStatus('Sending…', '');
+          await sendChunk(wav, true, 'chunk.wav');
+        }, chunkSeconds * 1000);
+      } catch (e) {
+        setStatus('Microphone: ' + e.message + ' Use "Upload audio" to test without a mic.', 'error');
+      }
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+      const input = document.getElementById('audioFile');
+      if (!input.files || !input.files[0]) {
+        setStatus('Choose an audio file first (WAV, MP3, M4A, WebM, etc.).', 'error');
+        return;
+      }
+      const file = input.files[0];
+      setStatus('Converting and uploading…', '');
+      let blobToSend = file;
+      let filename = file.name;
+      const ext = (file.name || '').toLowerCase();
+      if (ext.endsWith('.mp3') || ext.endsWith('.m4a') || ext.endsWith('.webm') || ext.endsWith('.ogg') || ext.endsWith('.aac')) {
+        try {
+          blobToSend = await decodeFileToWav(file);
+          filename = 'audio.wav';
+        } catch (e) {
+          setStatus('Browser could not decode this file. Try a WAV file or install FFmpeg (see README).', 'error');
+          input.value = '';
+          return;
+        }
+      }
+      setStatus('Uploading and transcribing…', '');
+      const form = new FormData();
+      form.append('audio', blobToSend, filename);
+      form.append('provider', providerSelect.value);
+      form.append('language', languageSelect.value);
+      try {
+        const r = await fetch('/api/transcribe', { method: 'POST', body: form });
+        const contentType = r.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await r.text();
+          setStatus('Server error (' + r.status + '): ' + text.slice(0, 300), 'error');
+          input.value = '';
+          return;
+        }
+        const data = await r.json();
+        if (data.ok) {
+          setTranscript(data.text || '', false);
+          setStatus('Done.', 'success');
+        } else {
+          setStatus('Error: ' + (data.error || r.status), 'error');
+        }
+      } catch (e) {
+        setStatus('Request failed: ' + e.message + ' (run: python app.py)', 'error');
+      }
+      input.value = '';
+    });
+
+    compareBtn.addEventListener('click', async () => {
+      setStatus('Recording for compare… Allow a few seconds.', '');
+      try {
+        await getMic();
+        const recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
+        mediaRecorder.start();
+        await new Promise(r => setTimeout(r, 5000));
+        mediaRecorder.stop();
+        await new Promise(r => { mediaRecorder.onstop = r; });
+        const webmBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+        setStatus('Converting and comparing…', '');
+        let blob = webmBlob;
+        try {
+          blob = await decodeFileToWav(webmBlob);
+        } catch (_) {}
+        await runCompareWithBlob(blob);
+      } catch (e) {
+        setStatus('Compare failed: ' + e.message + ' Use "Compare with this file" below (no mic needed).', 'error');
+      }
+    });
+
+    async function runCompareWithBlob(blob) {
+      const language = languageSelect.value;
+      compareResults.innerHTML = '';
+      setStatus('Comparing with Google, AWS, Azure…', '');
+      const filename = blob instanceof File ? blob.name : (blob.name || 'audio.wav');
+      for (const prov of ['google', 'aws', 'azure']) {
+        const form = new FormData();
+        form.append('audio', blob, filename.endsWith('.wav') ? filename : 'audio.wav');
+        form.append('language', language);
+        form.append('provider', prov);
+        const div = document.createElement('div');
+        div.className = 'compare-item';
+        div.innerHTML = '<span class="name">' + prov.charAt(0).toUpperCase() + prov.slice(1) + '</span><div class="text">…</div><div class="meta"></div>';
+        compareResults.appendChild(div);
+        const textEl = div.querySelector('.text');
+        const metaEl = div.querySelector('.meta');
+        const start = Date.now();
+        try {
+          const r = await fetch('/api/transcribe', { method: 'POST', body: form });
+          const elapsed = ((Date.now() - start) / 1000).toFixed(2);
+          const contentType = r.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            const text = await r.text();
+            textEl.textContent = 'Server error ' + r.status + ': ' + text.slice(0, 150);
+          } else {
+            const data = await r.json();
+            if (data.ok) {
+              textEl.textContent = data.text || '(empty)';
+              metaEl.textContent = elapsed + ' s';
+            } else {
+              textEl.textContent = 'Error: ' + (data.error || '');
+            }
+          }
+        } catch (e) {
+          textEl.textContent = 'Request failed: ' + e.message;
+        }
+      }
+      setStatus('Compare done.', 'success');
+    }
+
+    compareFileBtn.addEventListener('click', async () => {
+      if (!compareFileInput.files || !compareFileInput.files[0]) {
+        setStatus('Choose an audio file first, then click "Compare with this file".', 'error');
+        return;
+      }
+      const file = compareFileInput.files[0];
+      let blob = file;
+      const ext = (file.name || '').toLowerCase();
+      if (ext.endsWith('.mp3') || ext.endsWith('.m4a') || ext.endsWith('.webm') || ext.endsWith('.ogg') || ext.endsWith('.aac')) {
+        try {
+          setStatus('Converting file to WAV…', '');
+          blob = await decodeFileToWav(file);
+        } catch (e) {
+          setStatus('Browser could not decode this file. Try a WAV file or install FFmpeg.', 'error');
+          compareFileInput.value = '';
+          return;
+        }
+      }
+      await runCompareWithBlob(blob);
+      compareFileInput.value = '';
+    });
+  </script>
+</body>
+</html>

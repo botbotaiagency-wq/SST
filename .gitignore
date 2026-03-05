@@ -1,0 +1,23 @@
+# Credentials (do not commit)
+.env
+credentials.json
+aiellochatbot-7e91c5fcd6ee.json
+STT_Credentials_Engineering.docx
+STT_Credentials_Engineering.pdf
+Aiello_Google (1)/
+
+# Logs (generated at runtime)
+logs/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
