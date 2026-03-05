@@ -82,6 +82,18 @@ Then open in your browser: **http://127.0.0.1:5000**
 
 **Note:** The first time you use the mic, the browser will ask for microphone permission. Use **Chrome** or **Edge** for best support. Recording and file upload (MP3/M4A/WebM) are converted in the browser, so no FFmpeg is required.
 
+### Deploy on Vercel
+
+1. Connect your GitHub repo (**botbotaiagency-wq/SST**) to [Vercel](https://vercel.com) (Import Project).
+2. Set **Root Directory** to the repo root (leave blank or `.`).
+3. In **Project Settings → Environment Variables**, add (for Production, Preview, Development as needed):
+   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (e.g. `ap-southeast-1`)
+   - `GOOGLE_PROJECT_ID` (e.g. `aiellochatbot`)
+   - **Google credentials:** either set `GOOGLE_APPLICATION_CREDENTIALS` to a path (not possible on Vercel) or set **`GOOGLE_SERVICE_ACCOUNT_JSON`** to the **entire contents** of your Google service account JSON file (paste the raw JSON as the value).
+   - Optional: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`
+4. Deploy. The app will be available at `https://your-project.vercel.app`.  
+   **Microphone:** Browsers require HTTPS and may prompt for mic permission; allow for your Vercel URL.
+
 ---
 
 ## 4. Run the CLI comparison (file-based)

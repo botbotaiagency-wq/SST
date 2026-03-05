@@ -17,18 +17,21 @@ config.init_credentials()
 
 from flask import Flask, request, jsonify, render_template
 
-# Logging: file + console, with timestamps
+# Logging: file + console locally; on Vercel (serverless) only console (no write to disk)
 LOG_DIR = Path(__file__).resolve().parent / "logs"
-LOG_DIR.mkdir(exist_ok=True)
-LOG_FILE = LOG_DIR / "stt_app.log"
+handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+if not os.environ.get("VERCEL"):
+    try:
+        LOG_DIR.mkdir(exist_ok=True)
+        LOG_FILE = LOG_DIR / "stt_app.log"
+        handlers.append(logging.FileHandler(LOG_FILE, encoding="utf-8"))
+    except OSError:
+        pass
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=handlers,
 )
 logger = logging.getLogger("stt_app")
 
@@ -40,7 +43,8 @@ from stt_services.services import (
 )
 
 app = Flask(__name__, template_folder="templates")
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
+# Vercel serverless has ~4.5 MB body limit; use 4 MB when on Vercel
+app.config["MAX_CONTENT_LENGTH"] = (4 if os.environ.get("VERCEL") else 10) * 1024 * 1024
 
 
 @app.errorhandler(404)

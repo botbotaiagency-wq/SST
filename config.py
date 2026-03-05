@@ -53,6 +53,19 @@ def _load_credentials_json() -> None:
 
 
 def init_credentials() -> None:
-    """Load .env first, then overlay credentials.json. Call once at app startup."""
+    """Load .env first, then overlay credentials.json. Call once at app startup.
+    On Vercel: set env vars in the dashboard; for Google, set GOOGLE_SERVICE_ACCOUNT_JSON to the raw JSON string."""
     load_dotenv(PROJECT_ROOT / ".env")
+    # Vercel/serverless: Google credentials from env (no credentials.json file)
+    google_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if google_json and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        try:
+            data = json.loads(google_json)
+            fd, tmp = tempfile.mkstemp(suffix=".json", prefix="google_creds_")
+            os.close(fd)
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp
+        except (json.JSONDecodeError, OSError):
+            pass
     _load_credentials_json()
