@@ -93,7 +93,9 @@ Then open in your browser: **http://127.0.0.1:5000**
 4. **Redeploy** after changing env vars (Deployments → … → Redeploy). The app will be at `https://your-project.vercel.app`.  
    **Microphone:** Browsers require HTTPS and may prompt for mic permission; allow for your Vercel URL.
 
-   **If the link downloads a file instead of opening the app:** The project no longer uses a custom `vercel.json` so Vercel can auto-detect Flask. In Vercel → Project **Settings** → **General** → **Framework Preset**, set to **Flask** (or leave as Other). Redeploy. If it still downloads, check that **Root Directory** is blank and no **Output Directory** is set (Flask is a serverless app, not static).
+   **If the link shows 404:** Ensure `vercel.json` is present with `"framework": "flask"` so Vercel runs the app. In Vercel → **Settings** → **General**, set **Framework Preset** to **Flask** and leave **Root Directory** blank.
+
+   **If the link downloads a file instead of opening the app:** In Vercel → **Settings** → **General**, do not set **Output Directory** (Flask is a serverless app, not static). Redeploy.
 
 #### How to add GOOGLE_SERVICE_ACCOUNT_JSON (Vercel)
 
@@ -190,6 +192,9 @@ Use this file to trace errors (e.g. WinError 32, API failures, missing credentia
 
 - **AWS / Azure errors**  
   Check that the corresponding variables in `.env` or `credentials.json` are set and that the keys are valid and have Speech/Transcribe permissions.
+
+- **Azure: “404” or “page could not be found” (e.g. for Malay / ms-MY)**  
+  The short-audio endpoint in some regions may not support all languages. Set `AZURE_SPEECH_REGION` to a region that supports your language (e.g. `southeastasia` or `eastasia` for Malay) and redeploy. In Azure Portal, create a Speech resource in that region if needed.
 
 - **“Requested device not found” / “No microphone found”**  
   Use a built-in or USB microphone and allow access when the browser asks. You can still test without a mic: use **Upload audio** in the app (choose a WAV/MP3 file and click “Transcribe file”).

@@ -5,6 +5,7 @@ Each accepts a path to a WAV file (16 kHz mono recommended) and optional languag
 import asyncio
 import io
 import os
+import wave
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -182,7 +183,6 @@ def transcribe_aws(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -> 
 
 async def _transcribe_azure_async(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -> str | None:
     import aiohttp
-    from pydub import AudioSegment
 
     key = os.environ.get("AZURE_SPEECH_KEY")
     region = os.environ.get("AZURE_SPEECH_REGION")
@@ -192,12 +192,26 @@ async def _transcribe_azure_async(audio_path: str | Path, language: str = DEFAUL
             "(e.g. Vercel dashboard → Settings → Environment Variables, or .env locally)."
         )
 
-    wav_path = _ensure_wav_16k(audio_path)
-    audio_wav = AudioSegment.from_file(str(wav_path))
-    audio_wav = audio_wav.set_channels(1).set_frame_rate(16000)
-    buf = io.BytesIO()
-    audio_wav.export(buf, format="wav")
-    audio_data = buf.getvalue()
+    # Prefer reading WAV bytes without pydub (app usually provides 16 kHz mono already; avoids ffmpeg on Vercel)
+    p = Path(audio_path)
+    audio_data = None
+    if p.suffix.lower() == ".wav":
+        try:
+            with wave.open(str(p), "rb") as wav:
+                if wav.getnchannels() == 1 and wav.getframerate() == 16000:
+                    # Rebuild minimal WAV bytes (header + PCM) so Azure gets valid WAV
+                    buf = io.BytesIO()
+                    with wave.open(buf, "wb") as out:
+                        out.setnchannels(1)
+                        out.setsampwidth(wav.getsampwidth())
+                        out.setframerate(16000)
+                        out.writeframes(wav.readframes(wav.getnframes()))
+                    audio_data = buf.getvalue()
+        except Exception:
+            pass
+    if audio_data is None:
+        wav_path = _ensure_wav_16k(audio_path)
+        audio_data = Path(wav_path).read_bytes()
 
     base_url = f"https://{region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1"
     headers = {
@@ -211,6 +225,11 @@ async def _transcribe_azure_async(audio_path: str | Path, language: str = DEFAUL
         async with session.post(base_url, headers=headers, params=params, data=audio_data) as response:
             if response.status != 200:
                 text = await response.text()
+                if response.status == 404:
+                    raise RuntimeError(
+                        "Azure Speech returned 404 (endpoint or language not available in this region). "
+                        "Try another region (e.g. eastasia, southeastasia) or check language code (e.g. ms-MY for Malay)."
+                    )
                 raise RuntimeError(f"Azure API {response.status}: {text}")
             result = await response.json()
             if result.get("RecognitionStatus") == "Success":
