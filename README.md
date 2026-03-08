@@ -93,6 +93,8 @@ Then open in your browser: **http://127.0.0.1:5000**
 4. **Redeploy** after changing env vars (Deployments → … → Redeploy). The app will be at `https://your-project.vercel.app`.  
    **Microphone:** Browsers require HTTPS and may prompt for mic permission; allow for your Vercel URL.
 
+   **If the link downloads a file instead of opening the app:** The project no longer uses a custom `vercel.json` so Vercel can auto-detect Flask. In Vercel → Project **Settings** → **General** → **Framework Preset**, set to **Flask** (or leave as Other). Redeploy. If it still downloads, check that **Root Directory** is blank and no **Output Directory** is set (Flask is a serverless app, not static).
+
 #### How to add GOOGLE_SERVICE_ACCOUNT_JSON (Vercel)
 
 **Do not deploy the credential file** (e.g. `aiellochatbot-7e91c5fcd6ee.json`) to the repo or Vercel — it contains a private key and is in `.gitignore` for security. Use the environment variable instead.
