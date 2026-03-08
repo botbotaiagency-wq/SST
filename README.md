@@ -87,12 +87,29 @@ Then open in your browser: **http://127.0.0.1:5000**
 1. Connect your GitHub repo (**botbotaiagency-wq/SST**) to [Vercel](https://vercel.com) (Import Project).
 2. Set **Root Directory** to the repo root (leave blank or `.`).
 3. In **Project Settings → Environment Variables**, add (for Production, Preview, Development as needed):
-   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (e.g. `ap-southeast-1`)
-   - `GOOGLE_PROJECT_ID` (e.g. `aiellochatbot`)
-   - **Google credentials:** either set `GOOGLE_APPLICATION_CREDENTIALS` to a path (not possible on Vercel) or set **`GOOGLE_SERVICE_ACCOUNT_JSON`** to the **entire contents** of your Google service account JSON file (paste the raw JSON as the value).
-   - Optional: `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`
-4. Deploy. The app will be available at `https://your-project.vercel.app`.  
+   - **Google:** `GOOGLE_PROJECT_ID` (e.g. `aiellochatbot`). Then add **`GOOGLE_SERVICE_ACCOUNT_JSON`** — see **How to add GOOGLE_SERVICE_ACCOUNT_JSON** below.
+   - **AWS:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (e.g. `ap-southeast-1`). Paste the secret with no extra spaces or newlines. If you get 403 InvalidSignatureException, create a new access key in AWS IAM and paste the new secret.
+   - **Azure:** `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (e.g. `eastus2`) — required for the Azure provider; add these if you use Azure.
+4. **Redeploy** after changing env vars (Deployments → … → Redeploy). The app will be at `https://your-project.vercel.app`.  
    **Microphone:** Browsers require HTTPS and may prompt for mic permission; allow for your Vercel URL.
+
+#### How to add GOOGLE_SERVICE_ACCOUNT_JSON (Vercel)
+
+**Do not deploy the credential file** (e.g. `aiellochatbot-7e91c5fcd6ee.json`) to the repo or Vercel — it contains a private key and is in `.gitignore` for security. Use the environment variable instead.
+
+1. **Get the value (one line):** On your computer, in the project folder, run one of these in a terminal (use the path to your actual JSON file):
+   ```powershell
+   python -c "import json; print(json.dumps(json.load(open('aiellochatbot-7e91c5fcd6ee.json'))))"
+   ```
+   Or, if the file is in a subfolder:
+   ```powershell
+   python -c "import json; print(json.dumps(json.load(open(r'Aiello_Google (1)/Aiello Chatbot.json'))))"
+   ```
+   The command prints the JSON as a single line. Copy the **entire output** (from `{` to `}`).
+
+2. **Add it in Vercel:** Project → **Settings** → **Environment Variables** → **Add New** → Name: `GOOGLE_SERVICE_ACCOUNT_JSON`, Value: paste the copied line → Save. Apply to Production (and Preview/Development if you want).
+
+3. **Redeploy** so the new variable is used.
 
 ---
 

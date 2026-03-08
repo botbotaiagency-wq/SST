@@ -52,20 +52,45 @@ def _load_credentials_json() -> None:
         os.environ[key] = value
 
 
-def init_credentials() -> None:
-    """Load .env first, then overlay credentials.json. Call once at app startup.
-    On Vercel: set env vars in the dashboard; for Google, set GOOGLE_SERVICE_ACCOUNT_JSON to the raw JSON string."""
-    load_dotenv(PROJECT_ROOT / ".env")
-    # Vercel/serverless: Google credentials from env (no credentials.json file)
-    google_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    if google_json and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+def _apply_google_service_account_json() -> None:
+    """If GOOGLE_SERVICE_ACCOUNT_JSON is set and the credential file path is missing, use it (after credentials.json load)."""
+    google_json = (os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON") or "").strip()
+    if google_json.upper().startswith("GOOGLE_SERVICE_ACCOUNT_JSON="):
+        google_json = google_json.split("=", 1)[1].strip()
+    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    path_exists = creds_path and (Path(creds_path).exists() or (PROJECT_ROOT / creds_path).exists())
+    path_missing = creds_path and not path_exists
+    if not google_json or (creds_path and path_exists):
+        return
+    if creds_path and not path_missing:
+        return
+    try:
+        data = json.loads(google_json)
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        fd, tmp = tempfile.mkstemp(suffix=".json", prefix="google_creds_")
+        os.close(fd)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp
+    except (json.JSONDecodeError, OSError, ValueError):
         try:
-            data = json.loads(google_json)
-            fd, tmp = tempfile.mkstemp(suffix=".json", prefix="google_creds_")
-            os.close(fd)
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp
+            unescaped = google_json.replace("\\n", "\n")
+            data = json.loads(unescaped)
+            if isinstance(data, dict):
+                fd, tmp = tempfile.mkstemp(suffix=".json", prefix="google_creds_")
+                os.close(fd)
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2)
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp
         except (json.JSONDecodeError, OSError):
             pass
+
+
+def init_credentials() -> None:
+    """Load .env first, then overlay credentials.json. Call once at app startup."""
+    load_dotenv(PROJECT_ROOT / ".env")
     _load_credentials_json()
+    # After credentials.json: if GOOGLE_APPLICATION_CREDENTIALS points to a missing file, use GOOGLE_SERVICE_ACCOUNT_JSON
+    # so that .env or Vercel env can supply the JSON and we don't get overwritten by credentials.json.
+    _apply_google_service_account_json()

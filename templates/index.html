@@ -137,7 +137,7 @@
     <p class="subtitle">Real-time transcription in <strong>English</strong>, <strong>Bahasa Melayu</strong>, or <strong>Bahasa Indonesia</strong>. Pick a provider and language, then speak.</p>
 
     <div class="card" style="border-left: 4px solid var(--accent);">
-      <p class="help" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--border); border-radius: 6px;"><strong>Microphone:</strong> Open <strong>http://127.0.0.1:5000</strong>. If Chrome doesn&apos;t ask for permission, go to <strong>chrome://settings/content/microphone</strong> → under &quot;Allow&quot; click Add → enter <strong>http://127.0.0.1:5000</strong> → Add. Then reload this page and click &quot;Allow microphone&quot;.</p>
+      <p class="help" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: var(--border); border-radius: 6px;"><strong>Microphone:</strong> Use <strong>http://127.0.0.1:5000</strong> (local) or your app URL (e.g. sst-jet.vercel.app). If Chrome doesn&apos;t ask for permission, go to <strong>chrome://settings/content/microphone</strong> → under &quot;Allow&quot; click Add → enter this site&apos;s URL (e.g. <strong>https://sst-jet.vercel.app</strong> or <strong>http://127.0.0.1:5000</strong>) → Add. Then reload and click &quot;Allow microphone&quot;. If it says &quot;No microphone detected&quot;, set a mic in Windows Settings → Sound → Input.</p>
       <div class="row">
         <div>
           <label for="provider">Provider</label>
@@ -233,7 +233,8 @@
           throw new Error('Microphone permission denied. Click the lock or camera icon in the address bar → allow Microphone for this site → try again.');
         }
         if (e.name === 'NotFoundError' || (e.message && e.message.toLowerCase().includes('not found'))) {
-          throw new Error('No microphone detected. Plug in a mic, set it as default in Windows, then allow access when the browser asks.');
+          const site = window.location.hostname || 'this site';
+          throw new Error('No microphone detected. Check: (1) Windows Settings → System → Sound → choose an Input device. (2) Plug in a mic if needed. (3) In Chrome go to chrome://settings/content/microphone and ensure "' + site + '" or your app URL is allowed.');
         }
         if (e.name === 'NotReadableError' || e.name === 'AbortError') {
           throw new Error('Microphone in use or unavailable. Close other apps using the mic, then try again.');

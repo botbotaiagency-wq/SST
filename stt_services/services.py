@@ -109,7 +109,8 @@ def _get_aws_credential_resolver():
 
     access_key = (os.environ.get("AWS_ACCESS_KEY_ID") or "").strip()
     secret_key = (os.environ.get("AWS_SECRET_ACCESS_KEY") or "").strip()
-    # AWS secrets are base64-like: A-Za-z0-9/+= only; strip anything else (spaces, BOM, copy-paste junk)
+    # Remove newlines/spaces (Vercel or copy-paste can add them); then keep only base64-like chars
+    secret_key = "".join(secret_key.split()).replace("\\n", "").replace("\\r", "")
     secret_key = "".join(c for c in secret_key if ord(c) < 128 and (c.isalnum() or c in "/+=")).strip()
     if not access_key or not secret_key:
         return None
@@ -186,7 +187,10 @@ async def _transcribe_azure_async(audio_path: str | Path, language: str = DEFAUL
     key = os.environ.get("AZURE_SPEECH_KEY")
     region = os.environ.get("AZURE_SPEECH_REGION")
     if not key or not region:
-        raise ValueError("AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must be set in .env")
+        raise ValueError(
+            "AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must be set in environment variables "
+            "(e.g. Vercel dashboard → Settings → Environment Variables, or .env locally)."
+        )
 
     wav_path = _ensure_wav_16k(audio_path)
     audio_wav = AudioSegment.from_file(str(wav_path))
