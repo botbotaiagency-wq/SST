@@ -126,6 +126,10 @@
     .compare-item .name { font-weight: 600; color: var(--accent); margin-bottom: 0.25rem; }
     .compare-item .text { font-size: 0.95rem; }
     .compare-item .meta { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .compare-providers-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .compare-providers-list { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+    .compare-provider-cb-label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; cursor: pointer; }
+    .compare-provider-cb-label input { margin: 0; }
     .upload-row { margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .upload-row input[type="file"] { font-size: 0.9rem; color: var(--text); }
     .help { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
@@ -176,10 +180,28 @@
     </div>
 
     <div class="card compare-section">
-      <h3>Compare all three at once</h3>
-      <p class="subtitle" style="margin-bottom: 0.75rem;">Run the same clip through Google, AWS, and Azure. Record with the mic or upload a file (no mic needed).</p>
+      <h3>Compare providers</h3>
+      <p class="subtitle" style="margin-bottom: 0.75rem;">Pick a language and which models to compare, then record or upload a file.</p>
+      <div class="row" style="margin-bottom: 0.75rem;">
+        <div>
+          <label for="compareLanguage">Language for compare</label>
+          <select id="compareLanguage">
+            {% for code, name in languages %}
+            <option value="{{ code }}" {% if code == 'en-US' %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="compare-providers-row" style="margin-bottom: 0.75rem;">
+        <label class="compare-providers-label">Providers to compare</label>
+        <div class="compare-providers-list">
+          {% for value, label in compare_providers %}
+          <label class="compare-provider-cb-label"><input type="checkbox" class="compare-provider-cb" value="{{ value }}" checked /> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
       <div class="upload-row" style="margin-bottom: 0.5rem;">
-        <button type="button" class="btn" id="compareBtn">Record & compare all 6</button>
+        <button type="button" class="btn" id="compareBtn">Record & compare selected</button>
         <span style="color: var(--muted); font-size: 0.9rem;">Or:</span>
         <input type="file" id="compareFile" accept="audio/*" />
         <button type="button" class="btn" id="compareFileBtn">Compare with this file</button>
@@ -199,6 +221,7 @@
     const compareFileBtn = document.getElementById('compareFileBtn');
     const compareFileInput = document.getElementById('compareFile');
     const compareResults = document.getElementById('compareResults');
+    const compareLanguageSelect = document.getElementById('compareLanguage');
 
     let mediaRecorder = null;
     let stream = null;
@@ -470,11 +493,17 @@
     });
 
     async function runCompareWithBlob(blob) {
-      const language = languageSelect.value;
+      const language = compareLanguageSelect.value;
+      const providerCheckboxes = document.querySelectorAll('.compare-provider-cb:checked');
+      const providers = Array.from(providerCheckboxes).map(cb => cb.value);
+      if (providers.length === 0) {
+        setStatus('Select at least one provider to compare.', 'error');
+        return;
+      }
       compareResults.innerHTML = '';
-      setStatus('Comparing with all providers…', '');
+      setStatus('Comparing ' + providers.length + ' provider(s)…', '');
       const filename = blob instanceof File ? blob.name : (blob.name || 'audio.wav');
-      for (const prov of ['google', 'aws', 'azure', 'speechmatics', 'elevenlabs', 'groq']) {
+      for (const prov of providers) {
         const form = new FormData();
         form.append('audio', blob, filename.endsWith('.wav') ? filename : 'audio.wav');
         form.append('language', language);

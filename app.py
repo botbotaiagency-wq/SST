@@ -245,7 +245,18 @@ def log_request():
 
 @app.route("/")
 def index():
-    return render_template("index.html", languages=SUPPORTED_LANGUAGES)
+    return render_template(
+        "index.html",
+        languages=SUPPORTED_LANGUAGES,
+        compare_providers=[
+            ("google", "Google (Speech-to-Text v2)"),
+            ("aws", "AWS Transcribe"),
+            ("azure", "Azure Speech"),
+            ("speechmatics", "Speechmatics"),
+            ("elevenlabs", "ElevenLabs"),
+            ("groq", "Groq (Whisper)"),
+        ],
+    )
 
 
 def _safe_unlink(path: Path, label: str = "file") -> None:
