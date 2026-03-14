@@ -315,9 +315,12 @@ def transcribe_elevenlabs(audio_path: str | Path, language: str = DEFAULT_LANGUA
     lang = _lang_to_iso6391(language)
     url = "https://api.elevenlabs.io/v1/speech-to-text"
     headers = {"xi-api-key": key}
+    # model_id is required by the API (e.g. scribe_v2, scribe_v1)
+    data = {"model_id": "scribe_v2"}
+    if lang:
+        data["language_code"] = lang
     with open(p, "rb") as f:
         files = {"file": (p.name, f, "audio/wav")}
-        data = {} if not lang else {"language_code": lang}
         r = requests.post(url, headers=headers, files=files, data=data, timeout=120)
     if r.status_code != 200:
         raise RuntimeError(f"ElevenLabs API {r.status_code}: {r.text[:500]}")
