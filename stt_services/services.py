@@ -16,6 +16,14 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 DEFAULT_LANGUAGE = "en-US"
 
 
+def _lang_to_iso6391(language: str) -> str:
+    """Map BCP-47 (e.g. en-US, ms-MY) to ISO-639-1 (e.g. en, ms) for Speechmatics, ElevenLabs, Groq."""
+    if not language:
+        return "en"
+    part = language.split("-")[0].lower()
+    return part if len(part) == 2 else "en"
+
+
 def _ensure_wav_16k(audio_path: str | Path) -> Path:
     """Ensure file is 16 kHz mono WAV; return path to use (maybe temp)."""
     from pydub import AudioSegment
@@ -241,4 +249,106 @@ def transcribe_azure(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -
     """Transcribe with Azure Speech REST. Returns transcript or raises."""
     out = asyncio.run(_transcribe_azure_async(audio_path, language))
     return out or ""
+
+
+def transcribe_speechmatics(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -> str:
+    """Transcribe with Speechmatics batch API (async job + poll + get transcript)."""
+    import time
+    key = os.environ.get("SPEECHMATICS_API_KEY")
+    if not key:
+        raise ValueError(
+            "SPEECHMATICS_API_KEY must be set in environment variables "
+            "(e.g. Vercel dashboard or .env locally)."
+        )
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("Install 'requests' for Speechmatics: pip install requests")
+    import json as _json
+    p = Path(audio_path)
+    lang = _lang_to_iso6391(language)
+    base = "https://eu1.asr.api.speechmatics.com/v2"
+    headers = {"Authorization": f"Bearer {key}"}
+    config = {"type": "transcription", "transcription_config": {"language": lang}}
+    with open(p, "rb") as f:
+        files = {"data_file": (p.name, f, "audio/wav")}
+        data = {"config": _json.dumps(config)}
+        r = requests.post(f"{base}/jobs", headers=headers, data=data, files=files, timeout=60)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"Speechmatics create job {r.status_code}: {r.text[:500]}")
+    job = r.json()
+    job_id = job.get("id")
+    if not job_id:
+        raise RuntimeError(f"Speechmatics no job id: {job}")
+    for _ in range(60):
+        r = requests.get(f"{base}/jobs/{job_id}", headers=headers, timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"Speechmatics job status {r.status_code}: {r.text[:300]}")
+        data = r.json()
+        status = data.get("job", {}).get("status") or data.get("status")
+        if status == "done":
+            break
+        if status == "rejected":
+            raise RuntimeError(f"Speechmatics job rejected: {data}")
+        time.sleep(1)
+    else:
+        raise RuntimeError("Speechmatics job timed out")
+    r = requests.get(f"{base}/jobs/{job_id}/transcript", headers=headers, params={"format": "txt"}, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"Speechmatics transcript {r.status_code}: {r.text[:300]}")
+    return (r.text or "").strip()
+
+
+def transcribe_elevenlabs(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -> str:
+    """Transcribe with ElevenLabs Speech-to-Text API (sync)."""
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise ValueError(
+            "ELEVENLABS_API_KEY must be set in environment variables "
+            "(e.g. Vercel dashboard or .env locally)."
+        )
+    try:
+        import requests
+    except ImportError:
+        raise ImportError("Install 'requests' for ElevenLabs: pip install requests")
+    p = Path(audio_path)
+    lang = _lang_to_iso6391(language)
+    url = "https://api.elevenlabs.io/v1/speech-to-text"
+    headers = {"xi-api-key": key}
+    with open(p, "rb") as f:
+        files = {"file": (p.name, f, "audio/wav")}
+        data = {} if not lang else {"language_code": lang}
+        r = requests.post(url, headers=headers, files=files, data=data, timeout=120)
+    if r.status_code != 200:
+        raise RuntimeError(f"ElevenLabs API {r.status_code}: {r.text[:500]}")
+    out = r.json()
+    if isinstance(out, dict):
+        return (out.get("text") or out.get("transcript") or "").strip()
+    return str(out).strip()
+
+
+def transcribe_groq(audio_path: str | Path, language: str = DEFAULT_LANGUAGE) -> str:
+    """Transcribe with Groq Whisper API."""
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise ValueError(
+            "GROQ_API_KEY must be set in environment variables "
+            "(e.g. Vercel dashboard or .env locally)."
+        )
+    try:
+        from groq import Groq
+    except ImportError:
+        raise ImportError("Install 'groq' for Groq: pip install groq")
+    lang = _lang_to_iso6391(language)
+    client = Groq(api_key=key)
+    with open(audio_path, "rb") as f:
+        transcription = client.audio.transcriptions.create(
+            file=f,
+            model="whisper-large-v3-turbo",
+            language=lang,
+            response_format="text",
+        )
+    if hasattr(transcription, "text"):
+        return (transcription.text or "").strip()
+    return str(transcription).strip()
 

@@ -39,6 +39,9 @@ from stt_services.services import (
     transcribe_google,
     transcribe_aws,
     transcribe_azure,
+    transcribe_speechmatics,
+    transcribe_elevenlabs,
+    transcribe_groq,
     DEFAULT_LANGUAGE,
 )
 
@@ -61,7 +64,7 @@ def handle_exception(e):
     logger.exception("Unhandled exception: %s", e)
     return jsonify({"ok": False, "error": str(e)}), 500
 
-ALLOWED_PROVIDERS = {"google", "aws", "azure"}
+ALLOWED_PROVIDERS = {"google", "aws", "azure", "speechmatics", "elevenlabs", "groq"}
 # Primary test languages: English, Bahasa Melayu, Bahasa Indonesia (real-time)
 SUPPORTED_LANGUAGES = [
     ("en-US", "English (US)"),
@@ -295,8 +298,16 @@ def api_transcribe():
                 text = transcribe_google(wav_path, language=language)
             elif provider == "aws":
                 text = transcribe_aws(wav_path, language=language)
-            else:
+            elif provider == "azure":
                 text = transcribe_azure(wav_path, language=language)
+            elif provider == "speechmatics":
+                text = transcribe_speechmatics(wav_path, language=language)
+            elif provider == "elevenlabs":
+                text = transcribe_elevenlabs(wav_path, language=language)
+            elif provider == "groq":
+                text = transcribe_groq(wav_path, language=language)
+            else:
+                text = ""
             if text and _is_garbage_transcript(text):
                 logger.debug("Filtered garbage transcript (e.g. number hallucination): %s", text[:80])
                 text = ""

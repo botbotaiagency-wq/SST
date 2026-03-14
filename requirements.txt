@@ -14,3 +14,9 @@ amazon-transcribe>=0.6.0
 
 # Azure Speech (REST)
 aiohttp>=3.8.0
+
+# Speechmatics, ElevenLabs (REST)
+requests>=2.28.0
+
+# Groq Whisper
+groq>=0.4.0

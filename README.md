@@ -1,6 +1,6 @@
-# STT Comparison: Google, AWS, Azure
+# STT Comparison: Google, AWS, Azure, Speechmatics, ElevenLabs, Groq
 
-Test and compare **Google Cloud Speech-to-Text**, **AWS Transcribe**, and **Azure Speech** with your microphone or audio files. Includes a **web app** for real-time transcription and a **CLI** script to compare all three on the same file.
+Test and compare **Google Cloud Speech-to-Text**, **AWS Transcribe**, **Azure Speech**, **Speechmatics**, **ElevenLabs**, and **Groq (Whisper)** with your microphone or audio files. Includes a **web app** for real-time transcription and a **CLI** script to compare providers on the same file.
 
 **New to the project?** → See **[SETUP_GUIDE.md](SETUP_GUIDE.md)** for a step-by-step guide to run the app on your local computer (Python install, credentials, run commands, and troubleshooting).
 
@@ -52,6 +52,7 @@ Copy `credentials.json.example` to `credentials.json` in the project root. Paste
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`
 - `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to the Google service account JSON file), `GOOGLE_PROJECT_ID`
+- `SPEECHMATICS_API_KEY`, `ELEVENLABS_API_KEY`, `GROQ_API_KEY` (for the three additional providers)
 
 You can also paste the **entire Google service account JSON** into a key named `google_service_account` in `credentials.json`; the app will use it automatically.
 
@@ -75,10 +76,10 @@ Then open in your browser: **http://127.0.0.1:5000**
 
 ### What you can do
 
-- **Provider**: Choose **Google**, **AWS**, or **Azure**.
+- **Provider**: Choose **Google**, **AWS**, **Azure**, **Speechmatics**, **ElevenLabs**, or **Groq (Whisper)**.
 - **Language**: Select the spoken language (e.g. English (US), Chinese (Taiwan)).
 - **Start recording**: Click **“Start recording”**, speak; every **2 seconds** a chunk is sent (longer chunks help accuracy) and the transcript updates. Click **“Stop & transcribe”** to stop and get the last part.
-- **Compare all 3**: Click **“Record & compare all 3”** to record one clip and run it through Google, AWS, and Azure so you can compare accuracy and speed side by side.
+- **Compare all 6**: Click **“Record & compare all 6”** to record one clip and run it through all six providers so you can compare accuracy and speed side by side.
 
 **Note:** The first time you use the mic, the browser will ask for microphone permission. Use **Chrome** or **Edge** for best support. Recording and file upload (MP3/M4A/WebM) are converted in the browser, so no FFmpeg is required.
 
@@ -89,7 +90,8 @@ Then open in your browser: **http://127.0.0.1:5000**
 3. In **Project Settings → Environment Variables**, add (for Production, Preview, Development as needed):
    - **Google:** `GOOGLE_PROJECT_ID` (e.g. `aiellochatbot`). Then add **`GOOGLE_SERVICE_ACCOUNT_JSON`** — see **How to add GOOGLE_SERVICE_ACCOUNT_JSON** below.
    - **AWS:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` (e.g. `ap-southeast-1`). Paste the secret with no extra spaces or newlines. If you get 403 InvalidSignatureException, create a new access key in AWS IAM and paste the new secret.
-   - **Azure:** `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (e.g. `eastus2`) — required for the Azure provider; add these if you use Azure.
+   - **Azure:** `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (e.g. `eastus2`) — for the Azure provider.
+   - **Speechmatics / ElevenLabs / Groq:** `SPEECHMATICS_API_KEY`, `ELEVENLABS_API_KEY`, `GROQ_API_KEY` — add these if you use those providers.
 4. **Redeploy** after changing env vars (Deployments → … → Redeploy). The app will be at `https://your-project.vercel.app`.  
    **Microphone:** Browsers require HTTPS and may prompt for mic permission; allow for your Vercel URL.
 

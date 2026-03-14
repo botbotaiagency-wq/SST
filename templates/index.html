@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STT Compare — Google, AWS, Azure</title>
+  <title>STT Compare — Google, AWS, Azure, Speechmatics, ElevenLabs, Groq</title>
   <style>
     :root {
       --bg: #0f0f12;
@@ -145,6 +145,9 @@
             <option value="google">Google (Speech-to-Text v2)</option>
             <option value="aws">AWS Transcribe</option>
             <option value="azure">Azure Speech</option>
+            <option value="speechmatics">Speechmatics</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="groq">Groq (Whisper)</option>
           </select>
         </div>
         <div>
@@ -176,7 +179,7 @@
       <h3>Compare all three at once</h3>
       <p class="subtitle" style="margin-bottom: 0.75rem;">Run the same clip through Google, AWS, and Azure. Record with the mic or upload a file (no mic needed).</p>
       <div class="upload-row" style="margin-bottom: 0.5rem;">
-        <button type="button" class="btn" id="compareBtn">Record & compare all 3</button>
+        <button type="button" class="btn" id="compareBtn">Record & compare all 6</button>
         <span style="color: var(--muted); font-size: 0.9rem;">Or:</span>
         <input type="file" id="compareFile" accept="audio/*" />
         <button type="button" class="btn" id="compareFileBtn">Compare with this file</button>
@@ -469,9 +472,9 @@
     async function runCompareWithBlob(blob) {
       const language = languageSelect.value;
       compareResults.innerHTML = '';
-      setStatus('Comparing with Google, AWS, Azure…', '');
+      setStatus('Comparing with all providers…', '');
       const filename = blob instanceof File ? blob.name : (blob.name || 'audio.wav');
-      for (const prov of ['google', 'aws', 'azure']) {
+      for (const prov of ['google', 'aws', 'azure', 'speechmatics', 'elevenlabs', 'groq']) {
         const form = new FormData();
         form.append('audio', blob, filename.endsWith('.wav') ? filename : 'audio.wav');
         form.append('language', language);
