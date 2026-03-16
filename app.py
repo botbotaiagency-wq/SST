@@ -245,17 +245,38 @@ def log_request():
 
 @app.route("/")
 def index():
+    # Standard test phrases for reproducible accuracy/latency tests (used in app and documented in README)
+    TEST_PHRASES = {
+        "en-US": [
+            "The quick brown fox jumps over the lazy dog.",
+            "Speech recognition accuracy and speed may vary by provider and network.",
+        ],
+        "ms-MY": [
+            "Selamat pagi, apa khabar? Saya sedang menguji ketepatan transkripsi.",
+            "Sistem pengecaman suara membandingkan enam penyedia perkhidmatan.",
+        ],
+        "id-ID": [
+            "Selamat pagi, apa kabar? Saya sedang menguji akurasi transkripsi.",
+            "Sistem pengenalan suara membandingkan enam penyedia layanan.",
+        ],
+        "zh-TW": ["今天天氣很好，我們來測試語音辨識的準確度。"],
+        "zh-CN": ["今天天气很好，我们来测试语音识别的准确度。"],
+        "ja-JP": ["おはようございます。音声認識の精度をテストしています。"],
+        "ko-KR": ["안녕하세요. 음성 인식 정확도를 테스트하고 있습니다."],
+        "th-TH": ["สวัสดีครับ กำลังทดสอบความแม่นยำของการจดจำเสียง"],
+    }
     return render_template(
         "index.html",
         languages=SUPPORTED_LANGUAGES,
         compare_providers=[
-            ("google", "Google (Speech-to-Text v2)"),
-            ("aws", "AWS Transcribe"),
-            ("azure", "Azure Speech"),
-            ("speechmatics", "Speechmatics"),
-            ("elevenlabs", "ElevenLabs"),
-            ("groq", "Groq (Whisper)"),
+            ("google", "Google (Speech-to-Text v2)", "REST / streaming"),
+            ("aws", "AWS Transcribe", "Streaming"),
+            ("azure", "Azure Speech", "REST short-audio"),
+            ("speechmatics", "Speechmatics", "Batch API (job-based)"),
+            ("elevenlabs", "ElevenLabs", "REST API (sync)"),
+            ("groq", "Groq (Whisper)", "REST"),
         ],
+        test_phrases=TEST_PHRASES,
     )
 
 

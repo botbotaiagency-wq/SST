@@ -154,7 +154,59 @@ For domain-specific terms (e.g. product names), consider provider-specific optio
 
 ---
 
-## 6. Packages included
+## 6. Latency and real-time
+
+### Response time in the app
+
+The app shows **response time (round-trip)** = time from sending the audio request to receiving the transcript. Each compare result shows **“Response time (round-trip): X.XX s”**, and a summary line at the top lists providers **sorted by speed** (fastest first). This makes it clear which service responded quickest on the same clip.
+
+### Which API each provider uses (in this app)
+
+| Provider     | API used in this app        | Note |
+|-------------|-----------------------------|------|
+| **Google**  | REST / streaming            | Batch-style for compare. |
+| **AWS**     | Streaming                   | Real-time streaming. |
+| **Azure**   | REST short-audio            | Single request per chunk. |
+| **Speechmatics** | **Batch API (job-based)** | Create job → poll until done → get transcript. **Not** the Realtime/streaming API, so response time is higher than in reports that use Realtime. |
+| **ElevenLabs**  | **REST API (sync)**     | Single POST with file. **Not** the Realtime/streaming API. |
+| **Groq**    | REST                        | Request/response per file. |
+
+So **Speechmatics** in the app uses the **Batch API** (best for accuracy, slower). Their **Realtime** API would give lower latency but needs a different integration (e.g. WebSocket). **ElevenLabs** uses the **sync REST** endpoint; their **Realtime** product would be faster for live use.
+
+### Suggested test phrases (reproducible tests)
+
+The app includes **“Suggested test phrases”** in the Compare section (expand the details). Use these when recording so tests are reproducible. Standard phrases used:
+
+- **en-US:** “The quick brown fox jumps over the lazy dog.” / “Speech recognition accuracy and speed may vary by provider and network.”
+- **ms-MY:** “Selamat pagi, apa khabar? Saya sedang menguji ketepatan transkripsi.” / “Sistem pengecaman suara membandingkan enam penyedia perkhidmatan.”
+- **id-ID:** “Selamat pagi, apa kabar? Saya sedang menguji akurasi transkripsi.” / “Sistem pengenalan suara membandingkan enam penyedia layanan.”
+- **zh-TW:** “今天天氣很好，我們來測試語音辨識的準確度。”
+- **ja-JP:** “おはようございます。音声認識の精度をテストしています。”
+- (Other languages: see the app.)
+
+### How to repeat results (same recording)
+
+1. After a compare run, click **“Download recording (re-test)”** to save the audio as `stt_compare_recording.wav`.
+2. Use **“Compare with this file”** and select that WAV to re-run the same test with the same clip. You can share the file so others get the same accuracy and response times.
+
+### Testing latency (all 6 models)
+
+- Use the same audio (e.g. the downloaded WAV) and the same selected providers to compare latency across runs. Shorter clips (e.g. 5–10 seconds) give a clearer latency signal.
+- You can test **both accuracy and latency**: accuracy from the transcript text, response time from the reported seconds.
+
+### Real-time transcription via API
+
+- **What the app does today:** Live recording sends **2-second chunks** to the **selected** provider; each chunk is a separate API request. You get near–real-time output (a few seconds delay) for one provider at a time. This uses each provider’s **batch/short-audio** API (request → response).
+- **True streaming (real-time) APIs:** Several providers offer **streaming** (send audio as it’s captured, get partial results with low latency):
+  - **Google** and **AWS** have streaming APIs (we use batch for Google and streaming for AWS in the current setup).
+  - **Azure**, **Speechmatics**, and **ElevenLabs** offer streaming or real-time endpoints; using them would require different integration (e.g. WebSockets or streaming HTTP).
+  - **Groq** (Whisper) is request/response only; “real-time” here means sending small chunks (e.g. every 1–2 s) and showing results as they return.
+
+So **yes, latency can be tested** (and is shown in Compare), and **real-time-style transcription is possible**: either as chunk-based “near real-time” (as now) or by switching to each provider’s streaming API for lower latency where supported.
+
+---
+
+## 7. Packages included
 
 | Package              | Purpose                          |
 |----------------------|----------------------------------|
@@ -170,7 +222,7 @@ FFmpeg is **not** installed via pip; install it on your system as in section 1.
 
 ---
 
-## 7. Logs
+## 8. Logs
 
 When the app runs, it writes logs to:
 
@@ -181,7 +233,7 @@ Use this file to trace errors (e.g. WinError 32, API failures, missing credentia
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 - **“No audio file or invalid format”** / **“FFmpeg not found”** (or `FileNotFoundError: [WinError 2]` in logs)  
   Choose a supported file (WAV, MP3, M4A, WebM); the browser converts non-WAV uploads without FFmpeg. If you see this for the CLI or another workflow, install FFmpeg and add its `bin` folder to PATH (see Prerequisites).

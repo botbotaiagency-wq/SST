@@ -83,6 +83,14 @@
     .btn.danger { background: #c53030; }
     .btn.danger:hover { background: #e53e3e; }
     .btn.recording { background: var(--error); animation: pulse 1s infinite; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #3a3a42; }
+    .api-type-tag { font-size: 0.75rem; color: var(--muted); font-weight: normal; }
+    .test-phrases-box { margin-bottom: 0.75rem; font-size: 0.9rem; }
+    .test-phrases-box details { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    .test-phrases-box summary { cursor: pointer; }
+    .test-phrases-content { margin-top: 0.5rem; }
+    .test-phrases-lang { margin-bottom: 0.35rem; }
     @keyframes pulse { 50% { opacity: 0.85; } }
     .transcript-box {
       background: var(--bg);
@@ -130,6 +138,8 @@
     .compare-providers-list { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
     .compare-provider-cb-label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; cursor: pointer; }
     .compare-provider-cb-label input { margin: 0; }
+    .compare-latency-summary { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .compare-latency-summary strong { color: var(--text); }
     .upload-row { margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .upload-row input[type="file"] { font-size: 0.9rem; color: var(--text); }
     .help { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
@@ -195,16 +205,28 @@
       <div class="compare-providers-row" style="margin-bottom: 0.75rem;">
         <label class="compare-providers-label">Providers to compare</label>
         <div class="compare-providers-list">
-          {% for value, label in compare_providers %}
-          <label class="compare-provider-cb-label"><input type="checkbox" class="compare-provider-cb" value="{{ value }}" checked /> {{ label }}</label>
+          {% for value, label, api_type in compare_providers %}
+          <label class="compare-provider-cb-label" title="{{ api_type }}"><input type="checkbox" class="compare-provider-cb" value="{{ value }}" checked /> {{ label }} <span class="api-type-tag">({{ api_type }})</span></label>
           {% endfor %}
         </div>
+      </div>
+      <p class="help" style="margin-bottom: 0.75rem; font-size: 0.8rem;">Response time = time from sending audio to receiving transcript (round-trip). Speechmatics uses Batch API (slower); ElevenLabs uses sync REST. Realtime/streaming would be faster but need different integration.</p>
+      <div class="test-phrases-box">
+        <details>
+          <summary><strong>Suggested test phrases</strong> (read these when recording for reproducible tests)</summary>
+          <div class="test-phrases-content">
+            {% for lang_code, phrases in test_phrases.items() %}
+            <div class="test-phrases-lang"><strong>{{ lang_code }}</strong>: {{ phrases[0] }}{% if phrases|length > 1 %} | {{ phrases[1] }}{% endif %}</div>
+            {% endfor %}
+          </div>
+        </details>
       </div>
       <div class="upload-row" style="margin-bottom: 0.5rem;">
         <button type="button" class="btn" id="compareBtn">Record & compare selected</button>
         <span style="color: var(--muted); font-size: 0.9rem;">Or:</span>
         <input type="file" id="compareFile" accept="audio/*" />
         <button type="button" class="btn" id="compareFileBtn">Compare with this file</button>
+        <button type="button" class="btn btn-secondary" id="downloadCompareRecordingBtn" style="display: none;" title="Download the last recording used for compare so you can re-run the same file">Download recording (re-test)</button>
       </div>
       <div class="compare-results" id="compareResults"></div>
     </div>
@@ -226,6 +248,7 @@
     let mediaRecorder = null;
     let stream = null;
     let isRecording = false;
+    let lastCompareBlob = null;
 
     function setStatus(msg, type = '') {
       statusEl.textContent = msg;
@@ -492,7 +515,11 @@
       }
     });
 
+    const downloadCompareRecordingBtn = document.getElementById('downloadCompareRecordingBtn');
+
     async function runCompareWithBlob(blob) {
+      lastCompareBlob = blob;
+      downloadCompareRecordingBtn.style.display = blob ? 'inline-block' : 'none';
       const language = compareLanguageSelect.value;
       const providerCheckboxes = document.querySelectorAll('.compare-provider-cb:checked');
       const providers = Array.from(providerCheckboxes).map(cb => cb.value);
@@ -503,6 +530,7 @@
       compareResults.innerHTML = '';
       setStatus('Comparing ' + providers.length + ' provider(s)…', '');
       const filename = blob instanceof File ? blob.name : (blob.name || 'audio.wav');
+      const latencyResults = [];
       for (const prov of providers) {
         const form = new FormData();
         form.append('audio', blob, filename.endsWith('.wav') ? filename : 'audio.wav');
@@ -515,9 +543,11 @@
         const textEl = div.querySelector('.text');
         const metaEl = div.querySelector('.meta');
         const start = Date.now();
+        let elapsedSec = null;
         try {
           const r = await fetch('/api/transcribe', { method: 'POST', body: form });
-          const elapsed = ((Date.now() - start) / 1000).toFixed(2);
+          elapsedSec = (Date.now() - start) / 1000;
+          const elapsed = elapsedSec.toFixed(2);
           const contentType = r.headers.get('content-type') || '';
           if (!contentType.includes('application/json')) {
             const text = await r.text();
@@ -526,7 +556,8 @@
             const data = await r.json();
             if (data.ok) {
               textEl.textContent = data.text || '(empty)';
-              metaEl.textContent = elapsed + ' s';
+              metaEl.textContent = 'Response time (round-trip): ' + elapsed + ' s';
+              latencyResults.push({ name: prov.charAt(0).toUpperCase() + prov.slice(1), sec: elapsedSec });
             } else {
               textEl.textContent = 'Error: ' + (data.error || '');
             }
@@ -535,8 +566,25 @@
           textEl.textContent = 'Request failed: ' + e.message;
         }
       }
+      if (latencyResults.length > 0) {
+        latencyResults.sort((a, b) => a.sec - b.sec);
+        const summaryEl = document.createElement('div');
+        summaryEl.className = 'compare-latency-summary';
+        summaryEl.innerHTML = '<strong>Response time (round-trip, lower is better):</strong> ' + latencyResults.map(function (x) { return x.name + ' ' + x.sec.toFixed(2) + 's'; }).join(' &middot; ');
+        compareResults.insertBefore(summaryEl, compareResults.firstChild);
+      }
       setStatus('Compare done.', 'success');
     }
+
+    downloadCompareRecordingBtn.addEventListener('click', () => {
+      if (!lastCompareBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(lastCompareBlob);
+      a.download = 'stt_compare_recording.wav';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Downloaded. Use "Compare with this file" and select this WAV to re-run the same test.', 'success');
+    });
 
     compareFileBtn.addEventListener('click', async () => {
       if (!compareFileInput.files || !compareFileInput.files[0]) {
